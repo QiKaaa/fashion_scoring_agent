@@ -129,28 +129,47 @@ ANALYSIS_PROMPT = """
 ### 3. 向量数据库模块 (vector_store.py)
 ```python
 class VectorStore:
-    """ChromaDB向量数据库管理"""
+    """PostgreSQL + pgvector向量数据库管理"""
     
-    def __init__(self):
-        import chromadb
-        self.client = chromadb.Client()
-        self.collection = self.client.create_collection("fashion_styles")
+    def __init__(self, db_session):
+        self.db = db_session
     
     def add_outfit_embedding(self, outfit_id: str, embedding: np.ndarray, metadata: dict):
-        """添加穿搭向量嵌入"""
+        """添加穿搭向量嵌入到PostgreSQL"""
+        query = """
+        UPDATE outfit_analyses 
+        SET embedding = %s, updated_at = CURRENT_TIMESTAMP
+        WHERE id = %s
+        """
+        self.db.execute(query, [embedding.tolist(), outfit_id])
         
     def search_similar_outfits(self, query_embedding: np.ndarray, top_k: int = 5) -> list:
-        """搜索相似穿搭"""
+        """使用pgvector搜索相似穿搭"""
+        query = """
+        SELECT id, analysis_result, scores, 
+               (embedding <=> %s) as similarity_distance
+        FROM outfit_analyses 
+        WHERE embedding IS NOT NULL
+        ORDER BY embedding <=> %s
+        LIMIT %s
+        """
+        results = self.db.fetch_all(query, [query_embedding.tolist(), query_embedding.tolist(), top_k])
+        return [dict(row) for row in results]
         
     def update_outfit_feedback(self, outfit_id: str, feedback_score: float):
         """更新穿搭反馈评分"""
+        query = """
+        INSERT INTO user_feedback (analysis_id, rating, created_at)
+        VALUES (%s, %s, CURRENT_TIMESTAMP)
+        """
+        self.db.execute(query, [outfit_id, feedback_score])
 ```
 
-**ChromaDB配置**：
+**pgvector配置**：
 - **向量维度**: 512维（基于图像特征提取）
-- **相似度算法**: 余弦相似度
-- **索引类型**: HNSW（分层导航小世界图）
-- **存储格式**: 持久化本地存储
+- **相似度算法**: 余弦相似度(<=>)、欧几里得距离(<->)、内积(<#>)
+- **索引类型**: IVFFlat、HNSW
+- **存储格式**: PostgreSQL原生vector类型
 
 ### 4. 用户偏好学习模块 (user_profiler.py)
 ```python
