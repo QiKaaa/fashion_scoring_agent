@@ -6,6 +6,7 @@
 
 - 📸 **照片上传与预处理**: 支持多种图像格式，自动优化处理
 - 🔍 **智能穿搭识别**: 基于Qwen-VL-Chat API的视觉分析
+- 🧠 **意图识别模块**: 自动识别用户意图，智能调用相应功能
 - 📝 **详细描述生成**: 自然语言描述穿搭细节和风格
 - 📊 **多维度评分系统**: 颜色搭配、风格协调性、场合适宜性、时尚度、个人特色、预算合理性
 - 👤 **用户偏好学习**: 智能学习用户风格偏好和演进
@@ -98,27 +99,39 @@ poetry run uvicorn app.main:app --reload
 
 ## 核心功能
 
-### 1. 穿搭分析
+### 1. 意图识别
 ```python
-POST /api/analyze
+POST /api/v1/intent/detect
+```
+自动识别用户意图，智能调用相应功能模块
+
+### 2. 统一处理接口
+```python
+POST /api/v1/unified/process
+```
+一站式处理用户请求，自动识别意图并调用相应服务
+
+### 3. 穿搭分析
+```python
+POST /api/v1/analysis/analyze
 ```
 上传穿搭照片，获得详细分析和评分
 
-### 2. 用户偏好管理
+### 4. 用户偏好管理
 ```python
-GET/POST /api/user/{user_id}/preferences
+GET/POST /api/v1/user/{user_id}/preferences
 ```
 获取和更新用户偏好设置
 
-### 3. 个性化推荐
+### 5. 个性化推荐
 ```python
-GET /api/recommendations/{analysis_id}
+GET /api/v1/recommendations/{analysis_id}
 ```
 基于分析结果获取个性化推荐
 
-### 4. 相似穿搭搜索
+### 6. 相似穿搭搜索
 ```python
-GET /api/similar/{analysis_id}
+GET /api/v1/similar/{analysis_id}
 ```
 使用pgvector进行相似度搜索
 

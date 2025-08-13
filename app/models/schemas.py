@@ -1,90 +1,124 @@
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any, Union, Literal
 from pydantic import BaseModel, Field, HttpUrl, validator
 from datetime import datetime
 import uuid
 
 
+class IntentRequest(BaseModel):
+    """意图识别请求"""
+    message: str
+    image_path: Optional[str] = None
+    user_id: Optional[str] = None
+
+
+class IntentResponse(BaseModel):
+    """意图识别响应"""
+    intent_type: Literal["outfit_scoring", "outfit_recommendation"]
+    confidence: float = Field(..., ge=0, le=1)
+    reasoning: Optional[str] = None
+    raw_content: Optional[str] = None
+
+
 class UserPreferences(BaseModel):
     """用户偏好设置"""
-    style: Optional[str] = None
-    colors: Optional[List[str]] = None
-    occasions: Optional[List[str]] = None
-    budget: Optional[str] = None
-    avoid_items: Optional[List[str]] = None
-    favorite_brands: Optional[List[str]] = None
+    user_id: str
+    preferred_styles: List[str] = Field(default_factory=list)
+    preferred_colors: List[str] = Field(default_factory=list)
+    preferred_brands: List[str] = Field(default_factory=list)
+    budget_range: Optional[Dict[str, float]] = None
+    occasion_preferences: Optional[Dict[str, List[str]]] = None
+    disliked_styles: List[str] = Field(default_factory=list)
+    disliked_colors: List[str] = Field(default_factory=list)
+    body_type: Optional[str] = None
+    skin_tone: Optional[str] = None
+    age_range: Optional[str] = None
+    gender: Optional[str] = None
+    season_preferences: Optional[Dict[str, float]] = None
+    updated_at: datetime = Field(default_factory=datetime.now)
 
 
-class ImageMetadata(BaseModel):
-    """图像元数据"""
-    format: str
-    mode: str
-    width: int
-    height: int
-    resized: Optional[bool] = False
-    new_width: Optional[int] = None
-    new_height: Optional[int] = None
-
-
-class ImageUploadResponse(BaseModel):
-    """图像上传响应"""
-    filename: str
-    filepath: str
-    content_type: str
-    size: int
-    metadata: ImageMetadata
-
-
-class AnalysisScores(BaseModel):
-    """穿搭分析评分"""
-    color_harmony: float = Field(..., ge=0, le=10, description="颜色搭配协调性评分")
-    style_consistency: float = Field(..., ge=0, le=10, description="风格协调性评分")
-    occasion_suitability: float = Field(..., ge=0, le=10, description="场合适宜性评分")
-    fashion_level: float = Field(..., ge=0, le=10, description="时尚度评分")
-    personal_style: float = Field(..., ge=0, le=10, description="个人特色评分")
-    budget_value: Optional[float] = Field(None, ge=0, le=10, description="预算合理性评分")
-    
-    @property
-    def average_score(self) -> float:
-        """计算平均评分"""
-        scores = [self.color_harmony, self.style_consistency, self.occasion_suitability, 
-                 self.fashion_level, self.personal_style]
-        if self.budget_value is not None:
-            scores.append(self.budget_value)
-        return sum(scores) / len(scores)
-
-
-class TokenUsage(BaseModel):
-    """API令牌使用情况"""
-    input_tokens: int
-    output_tokens: int
-    total_tokens: int
-
-
-class AnalysisRequest(BaseModel):
+class OutfitAnalysisRequest(BaseModel):
     """穿搭分析请求"""
     image_path: Optional[str] = None
-    user_preferences: Optional[UserPreferences] = None
+    image_url: Optional[HttpUrl] = None
+    user_id: Optional[str] = None
     budget_focus: bool = False
+    preferences: Optional[UserPreferences] = None
+
+    @validator("image_path", "image_url")
+    def validate_image_source(cls, v, values):
+        if not v and not values.get("image_url") and not values.get("image_path"):
+            raise ValueError("必须提供image_path或image_url")
+        return v
 
 
-class AnalysisResponse(BaseModel):
+class ScoreDimension(BaseModel):
+    """评分维度"""
+    score: float = Field(..., ge=1, le=10)
+    reasoning: str
+    improvement_suggestions: Optional[List[str]] = None
+
+
+class OutfitAnalysisResponse(BaseModel):
     """穿搭分析响应"""
     analysis_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    raw_content: str
-    scores: AnalysisScores
-    suggestions: List[str]
-    recommendations: List[str]
-    usage: Optional[TokenUsage] = None
-    request_id: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    outfit_description: str
+    color_palette: List[str]
+    style_type: str
+    scores: Dict[str, ScoreDimension]
+    overall_score: float
+    improvement_suggestions: List[str]
+    created_at: datetime = Field(default_factory=datetime.now)
+    user_id: Optional[str] = None
 
 
-class ErrorResponse(BaseModel):
-    """错误响应"""
-    error: str
-    detail: Optional[str] = None
+class RecommendationRequest(BaseModel):
+    """穿搭推荐请求"""
+    user_id: Optional[str] = None
+    occasion: Optional[str] = None
+    style_preference: Optional[str] = None
+    color_preference: Optional[List[str]] = None
+    budget_range: Optional[Dict[str, float]] = None
+    season: Optional[str] = None
+    reference_image_path: Optional[str] = None
+    preferences: Optional[UserPreferences] = None
+
+
+class OutfitItem(BaseModel):
+    """穿搭单品"""
+    item_type: str
+    description: str
+    color: str
+    style: str
+    estimated_price_range: Optional[Dict[str, float]] = None
+    brand_suggestions: Optional[List[str]] = None
+    image_url: Optional[HttpUrl] = None
+
+
+class OutfitRecommendation(BaseModel):
+    """穿搭推荐"""
+    recommendation_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    outfit_items: List[OutfitItem]
+    style_description: str
+    occasion_suitability: List[str]
+    estimated_total_budget: Optional[Dict[str, float]] = None
+    styling_tips: List[str]
+    created_at: datetime = Field(default_factory=datetime.now)
+    user_id: Optional[str] = None
+
+
+class UnifiedRequest(BaseModel):
+    """统一处理请求"""
+    message: str
+    image_path: Optional[str] = None
+    image_url: Optional[HttpUrl] = None
+    user_id: Optional[str] = None
+    preferences: Optional[UserPreferences] = None
+
+
+class UnifiedResponse(BaseModel):
+    """统一处理响应"""
+    intent_type: Literal["outfit_scoring", "outfit_recommendation"]
+    confidence: float
+    result: Union[OutfitAnalysisResponse, OutfitRecommendation]
+    processing_time: float
