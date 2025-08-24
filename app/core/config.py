@@ -6,11 +6,15 @@ import os
 from pydantic_settings import BaseSettings
 from typing import Dict, List, Optional, Any, Union
 from functools import lru_cache
+from dotenv import load_dotenv
 
+load_dotenv()   
 
 class Settings(BaseSettings):
+    class Config:
+        env_file = ".env"
+
     """应用配置"""
-    
     # 应用信息
     APP_NAME: str = "智能穿搭分析Agent"
     APP_VERSION: str = "0.1.0"

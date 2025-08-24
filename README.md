@@ -60,9 +60,30 @@ fashion_scoring_agent/
 - Python 3.9+
 - PostgreSQL 14+ (with pgvector extension)
 - Redis 6+
-- Poetry
+- Docker & Docker Compose (推荐)
 
-### 安装步骤
+### 使用 Docker Compose 启动（推荐）
+
+1. **克隆项目**
+```bash
+git clone <repository-url>
+cd fashion_scoring_agent
+```
+
+2. **配置环境变量**
+```bash
+cp .env.example .env
+# 编辑 .env 文件，配置API密钥和其他设置
+```
+
+3. **使用启动脚本**
+```bash
+chmod +x start.sh
+./start.sh
+```
+启动脚本会自动启动 PostgreSQL 和 Redis 服务，安装依赖，并启动应用。
+
+### 手动安装
 
 1. **克隆项目**
 ```bash
@@ -72,7 +93,11 @@ cd fashion_scoring_agent
 
 2. **安装依赖**
 ```bash
+# 使用 Poetry（推荐）
 poetry install
+
+# 或使用 pip
+pip install -r requirements.txt
 ```
 
 3. **配置环境变量**
@@ -81,14 +106,19 @@ cp .env.example .env
 # 编辑 .env 文件，配置数据库和API密钥
 ```
 
-4. **初始化数据库**
+4. **启动数据库服务**
 ```bash
-poetry run alembic upgrade head
+# 使用 Docker Compose 启动 PostgreSQL 和 Redis
+docker-compose up -d
 ```
 
-5. **启动服务**
+5. **启动应用**
 ```bash
-poetry run uvicorn app.main:app --reload
+# 使用 Poetry
+poetry run python -m app.main
+
+# 或直接使用 Python
+python -m app.main
 ```
 
 ## API文档
@@ -168,12 +198,61 @@ poetry run isort .
 poetry run mypy .
 ```
 
+## 数据库配置
+
+### PostgreSQL 配置
+
+项目使用 PostgreSQL 作为主数据库，并使用 pgvector 扩展进行向量搜索。配置参数在 `.env` 文件中：
+
+```
+POSTGRES_SERVER=localhost
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=fashion_scoring_agent
+POSTGRES_PORT=5432
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/fashion_scoring_agent
+```
+
+### Redis 配置
+
+Redis 用于缓存和会话管理，配置参数在 `.env` 文件中：
+
+```
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_DB=0
+REDIS_PASSWORD=
+```
+
+### 数据库初始化
+
+应用启动时会自动初始化数据库表和 pgvector 扩展。如果需要手动初始化，可以执行：
+
+```python
+from app.db.init_db import init_db
+import asyncio
+
+asyncio.run(init_db())
+```
+
 ## 部署
 
-### Docker部署
+### Docker Compose 部署（推荐）
 ```bash
+# 启动所有服务
+docker-compose up -d
+
+# 启动应用
+python -m app.main
+```
+
+### 独立 Docker 部署
+```bash
+# 构建应用镜像
 docker build -t fashion-scoring-agent .
-docker run -p 8000:8000 fashion-scoring-agent
+
+# 运行应用容器
+docker run -p 8000:8000 --network=fashion_scoring_agent_default fashion-scoring-agent
 ```
 
 ### 生产环境配置
@@ -181,6 +260,7 @@ docker run -p 8000:8000 fashion-scoring-agent
 - 配置 PostgreSQL 主从复制
 - 设置 Redis 集群
 - 启用日志收集和监控
+- 配置 HTTPS 和安全设置
 
 ## 贡献指南
 

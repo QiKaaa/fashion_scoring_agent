@@ -4,12 +4,20 @@ from pydantic import parse_obj_as
 import json
 
 from app.models.schemas import (
-    AnalysisRequest, 
-    AnalysisResponse, 
-    UserPreferences, 
-    ImageUploadResponse,
-    ErrorResponse
+    OutfitAnalysisRequest as AnalysisRequest, 
+    OutfitAnalysisResponse as AnalysisResponse, 
+    UserPreferences
 )
+
+# 定义错误响应模型，因为schemas.py中没有
+from pydantic import BaseModel
+
+class ErrorResponse(BaseModel):
+    detail: str
+
+class ImageUploadResponse(BaseModel):
+    filepath: str
+    filename: str
 from app.services.analysis_service import analysis_service
 from app.services.image_service import image_service
 

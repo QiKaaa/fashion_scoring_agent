@@ -91,7 +91,7 @@ CREATE TABLE agent_memories (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP,
     tags TEXT[],
-    metadata JSONB
+    meta_info JSONB
 );
 
 -- 记忆关联表（记忆之间的关系）
